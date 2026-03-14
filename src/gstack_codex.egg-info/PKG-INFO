@@ -1,0 +1,37 @@
+Metadata-Version: 2.4
+Name: gstack-codex
+Version: 0.1.0
+Summary: Codex-native skill pack and tooling with agent-browser integration
+Author: gstack-codex maintainers
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+
+# gstack-codex
+
+Codex-native migration of gstack with eight workflow skills and direct `agent-browser` command integration.
+
+## Requirements
+
+- Python 3.11+
+- `uv`
+- `agent-browser` installed and initialized:
+
+```bash
+npm install -g agent-browser
+agent-browser install
+```
+
+## Quick Start
+
+```bash
+uv sync --dev
+uv run gstack-codex doctor
+uv run pytest
+```
+
+## Layout
+
+- `.agents/skills/` Codex skills (`SKILL.md`)
+- `src/gstack_codex/` Python core logic and command runner
+- `tests/` unit, integration, and e2e-style smoke tests
+- `docs/` migration and runbook docs

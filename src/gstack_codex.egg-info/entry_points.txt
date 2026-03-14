@@ -1,0 +1,2 @@
+[console_scripts]
+gstack-codex = gstack_codex.cli:main

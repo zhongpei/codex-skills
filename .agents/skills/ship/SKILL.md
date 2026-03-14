@@ -1,11 +1,11 @@
 ---
 name: ship
-description: Structured ship workflow: sync, test, review, version/changelog prep, and PR creation with push/PR confirmation gate.
+description: "Structured ship workflow: sync, test, review, version/changelog prep, and PR creation with push/PR confirmation gate."
 ---
 
 # Ship Workflow
 
-This workflow is automation-first, but `git push` and `gh pr create` require explicit confirmation to satisfy project safety policy.
+This workflow is automation-first, but `git push` and `gh pr create --fill` require explicit confirmation to satisfy project safety policy.
 
 ## Step 1: Pre-flight
 
@@ -50,7 +50,7 @@ git commit -m "chore: ship release"
 
 ```bash
 git push
-gh pr create
+gh pr create --fill
 ```
 
 ## Greptile Handling

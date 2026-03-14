@@ -65,14 +65,11 @@ class ShipWorkflow:
             ShipStep("changelog", "update CHANGELOG.md"),
             ShipStep("commit", "git add -A && git commit -m 'chore: ship release'"),
             ShipStep("push", "git push", requires_confirmation=confirm),
-            ShipStep("create-pr", "gh pr create", requires_confirmation=confirm),
+            ShipStep("create-pr", "gh pr create --fill", requires_confirmation=confirm),
         ]
 
     def release_steps(self, include_pr: bool = True) -> list[str]:
-        steps = [step.command for step in self.steps() if include_pr or step.name != "create-pr"]
-        if not include_pr:
-            return [step for step in steps if step != "gh pr create"]
-        return steps
+        return [step.command for step in self.steps() if include_pr or step.name != "create-pr"]
 
     def confirmation_required(self, step_name: str) -> bool:
         for step in self.steps():

@@ -4,7 +4,7 @@
 在独立仓 `gstack-codex` 中完成 Python 主栈 + Codex 原生 8 技能迁移，并基于 `agent-browser` 直接调用实现浏览器能力。
 
 ## Current Phase
-Phase 5
+Phase 6
 
 ## Phases
 
@@ -34,6 +34,15 @@ Phase 5
 ### Phase 5: Delivery
 - [x] Summarize changes and risks
 - [x] Deliver implementation details to user
+- **Status:** complete
+
+### Phase 6: GH Skills Validation (Post-Remote Setup)
+- [x] Re-verify GitHub auth and repo context
+- [x] Enumerate all gh-related skill paths and expected behaviors
+- [x] Run real review gh flow (repo/pr detection + greptile fetch endpoints)
+- [x] Run real ship gh flow (`gh pr create --fill` success + duplicate handling)
+- [x] Validate degraded path (no PR context) remains consistent
+- [x] Consolidate evidence into findings/progress and final report
 - **Status:** complete
 
 ## Decisions Made

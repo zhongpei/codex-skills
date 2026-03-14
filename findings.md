@@ -50,3 +50,24 @@
 - https://github.com/vercel-labs/agent-browser
 - https://raw.githubusercontent.com/vercel-labs/agent-browser/main/README.md
 - docs/consistency-audit.md
+
+## 2026-03-14 GH Validation Scope
+
+- `gh` 直接相关技能路径已确认：`review`（Greptile triage fetch）与 `ship`（`gh pr create`）。
+- `retro` 仅在文档中声明“可选 Greptile 历史”，当前 Python 实现未直接调用 `gh`。
+- 当前仓库 remote 已切到 GitHub：`git@github-personal:zhongpei/codex-skills.git`。
+- 在沙箱内执行 `gh` 会出现网络不可达/凭据无效假象；提权执行后状态正常（已登录 `zhongpei`，repo scope 可用）。
+
+## 2026-03-14 GH Validation Results
+
+- 已验证 `review` 的两类上下文：
+  - 无 PR（`master`）：`gh pr view` 返回 `no pull requests found`，符合降级跳过预期。
+  - 有 PR（`chore/gh-skill-validation-20260314`，PR `#1`）：`gh repo view` 与 `gh pr view` 均可正确解析上下文。
+- 已实测 Greptile 拉取命令（两个端点）可执行且返回空结果：
+  - `repos/$REPO/pulls/$PR_NUMBER/comments`
+  - `repos/$REPO/issues/$PR_NUMBER/comments`
+- 已对 `review.py` 实现层命令生成进行实测：`greptile_fetch_commands(...)` 产出的两条 `gh api` 命令均返回 `RC=0`。
+- 已实测 `ship` 的 PR 创建路径：
+  - 首次 `gh pr create --fill` 成功创建 PR：`https://github.com/zhongpei/codex-skills/pull/1`
+  - 再次执行返回“already exists”，符合重复创建边界行为。
+- 发现并修复一致性问题：`ShipWorkflow` 原步骤为裸 `gh pr create`，在非交互环境会失败；已改为 `gh pr create --fill`，并同步 SKILL 文档和测试。

@@ -66,6 +66,12 @@ def test_qa_report_and_ship_steps(monkeypatch: pytest.MonkeyPatch, capsys: pytes
     ship_out = capsys.readouterr().out
     assert ship_code == 0
     assert "git push" in ship_out
+    assert "gh pr create --fill" in ship_out
+
+    ship_no_pr_code = run_main(monkeypatch, ["gstack-codex", "ship-steps", "--no-pr"])
+    ship_no_pr_out = capsys.readouterr().out
+    assert ship_no_pr_code == 0
+    assert "gh pr create" not in ship_no_pr_out
 
 
 def test_retro_window(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

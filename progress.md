@@ -55,3 +55,59 @@
 | `rm -rf` was blocked by command policy in temp clone step | Switched to timestamped temp directory creation |
 | `pytest` missing in environment | Added `dependency-groups.dev` and re-ran `uv sync --dev` |
 | `gh` not installed for PR/Greptile actions | Workflow continued in degraded mode as designed |
+
+## Session: 2026-03-14 (GH Skills Validation Continuation)
+
+### Actions Taken
+- Scanned `src/` and `.agents/skills/` to enumerate all `gh` touchpoints.
+- Confirmed direct `gh` command usage exists in:
+  - `src/gstack_codex/skills/review.py` (`gh api repos/.../pulls|issues/.../comments`)
+  - `src/gstack_codex/skills/ship.py` (`gh pr create`)
+  - `.agents/skills/review/greptile-triage.md` and `.agents/skills/ship/SKILL.md`
+- Verified repository context:
+  - remote: `git@github-personal:zhongpei/codex-skills.git`
+  - branch: `master`
+- Verified `gh` status in real environment (escalated):
+  - logged in as `zhongpei`
+  - token scopes include `repo`
+  - repo metadata query and `gh pr status` both succeed.
+
+### Current Focus
+- Consolidate GH validation evidence and report back to user.
+
+### GH Flow Execution Log
+- Verified degraded review path on `master`:
+  - `gh pr view --json number --jq '.number'` -> `no pull requests found for branch "master"`.
+- Created real test branch and commit:
+  - branch: `chore/gh-skill-validation-20260314`
+  - commit: `375910f` (`test: add gh skills validation marker`)
+- Pushed branch to GitHub and created real PR:
+  - PR URL: `https://github.com/zhongpei/codex-skills/pull/1`
+- Validated review Greptile fetch endpoints on PR `#1`:
+  - pull comments bot count: `0`
+  - issue comments bot count: `0`
+- Executed implementation-generated commands from `review.py` directly:
+  - `gh api repos/zhongpei/codex-skills/pulls/1/comments ...` -> `RC=0`
+  - `gh api repos/zhongpei/codex-skills/issues/1/comments ...` -> `RC=0`
+- Verified ship duplicate PR behavior:
+  - `gh pr create --fill` on existing PR -> expected `already exists` error.
+- Identified and fixed non-interactive bug:
+  - bare `gh pr create` fails without title/body in non-interactive shell.
+  - updated workflow command to `gh pr create --fill`.
+
+### Additional Test Results
+| Test | Expected | Actual | Status |
+|------|----------|--------|--------|
+| `gh auth status` (escalated) | Valid GitHub login | Logged in as `zhongpei` with `repo` scope | pass |
+| `gh repo view` (escalated) | Resolve owner/repo | `zhongpei/codex-skills` | pass |
+| `gh pr view` on `master` | No PR -> degraded path | `no pull requests found` | pass |
+| `gh pr create --fill` first run | Create PR | Created `PR #1` | pass |
+| `gh api pulls/issues comments` | Endpoints reachable | Both executed, 0 Greptile comments | pass |
+| `gh pr create --fill` second run | Duplicate protection | `already exists` | pass |
+| `uv run pytest` after gh command fix | All tests pass, coverage >=90% | 26 passed, 91.93% | pass |
+
+### Errors
+| Error | Resolution |
+|-------|------------|
+| `gh api ... --jq` first run used invalid escaped quotes | Corrected jq quoting and re-ran successfully |
+| Bare `gh pr create` fails in non-interactive shell | Changed ship command to `gh pr create --fill` and added tests |

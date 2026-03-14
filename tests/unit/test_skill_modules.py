@@ -116,6 +116,8 @@ def test_ship_helpers() -> None:
     workflow = ShipWorkflow()
     steps = workflow.steps()
     assert any(step.name == "push" and step.requires_confirmation for step in steps)
+    assert any(step.name == "create-pr" and step.command == "gh pr create --fill" for step in steps)
+    assert all("gh pr create" not in cmd for cmd in workflow.release_steps(include_pr=False))
     assert workflow.confirmation_required("push") is True
 
     with pytest.raises(KeyError):

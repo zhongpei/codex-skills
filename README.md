@@ -1,68 +1,98 @@
 # gstack-codex
 
-`gstack-codex` is a Codex-native workflow pack for engineering teams that want explicit operating modes instead of one generic assistant behavior.
+**gstack-codex turns Codex from one generic assistant behavior into explicit engineering operating modes.**
 
-It combines:
-- 8 production-oriented skills under `.agents/skills`
-- A Python CLI (`gstack-codex`) for repeatable helper flows
-- Direct `agent-browser` command integration (no hidden wrappers)
+This repository is not a prompt list. It is a workflow system:
+- 8 skills in `.agents/skills`, each with a clear job and output contract
+- a Python CLI (`gstack-codex`) for deterministic helper actions
+- direct `agent-browser` commands for browser QA and authenticated session reuse
 
-This README is written as an operator manual: command-first, implementation-aligned, and ready for daily use.
+If your team already relies on coding agents, this repo gives you a practical way to standardize planning depth, review rigor, release safety, browser QA evidence, and retro quality.
 
-## Table of Contents
+## Why this exists
 
-1. [What You Get](#what-you-get)
-2. [Requirements](#requirements)
-3. [Installation](#installation)
-4. [Quick Start](#quick-start)
-5. [Skill Reference (8 Skills)](#skill-reference-8-skills)
-6. [CLI Reference](#cli-reference)
-7. [Full Multi-Mode Example](#full-multi-mode-example)
-8. [Artifacts and Repository Layout](#artifacts-and-repository-layout)
-9. [Troubleshooting](#troubleshooting)
-10. [Validation Policy](#validation-policy)
+Most teams do not fail because models cannot write code. They fail because process quality is inconsistent:
+- one day planning is sharp, next day scope drifts
+- one PR gets deep review, another gets “looks good”
+- release steps are remembered from memory and vary by person
+- browser testing is ad-hoc and rarely reproducible
+- retros are discussion-heavy but action-light
 
-## What You Get
+gstack-codex addresses that by making mode switching explicit. You choose the mode, and the session follows that mode’s contract.
 
-### Skill Inventory
+## Without vs with gstack-codex
 
-| Skill | Primary Use | Typical Output |
+### Without
+
+- Planning jumps to implementation before goal and scope are locked.
+- “Review my PR” yields variable depth and blind spots.
+- “Ship this” becomes a long back-and-forth checklist recreation.
+- Browser regressions are found late because evidence is weak.
+- Team learning loops depend on memory, not artifacts.
+
+### With
+
+| Skill | Mode | Primary outcome |
 |---|---|---|
-| `plan-ceo-review` | Challenge premise and scope before implementation | Decision-complete product/strategy review |
-| `plan-eng-review` | Lock architecture/test/perf plan after scope is fixed | Implementation-ready engineering plan |
-| `review` | Pre-landing PR review with checklist + optional Greptile triage | Findings-first review with severity and file/line refs |
-| `ship` | Structured release workflow with push/PR confirmation gates | Ordered release actions and safety checks |
-| `browse` | Browser-visible QA and dogfooding checks | Evidence-backed pass/fail + screenshots/logs |
-| `qa` | Systematic QA in `diff-aware` / `full` / `quick` / `regression` modes | Markdown QA report + baseline JSON |
-| `setup-browser-cookies` | Auth/session bootstrap with `state save/load` | Reusable authenticated browser state |
-| `retro` | Weekly/team retro with compare mode and snapshots | Metrics summary + persisted JSON snapshots |
+| `plan-ceo-review` | product/founder pressure test | Reframed goal, scope challenge, decision-forcing review |
+| `plan-eng-review` | engineering manager/lead review | Buildable architecture + tests + operational risks |
+| `review` | pre-landing reviewer | Findings-first review with severity and fix direction |
+| `ship` | release operator | Ordered release workflow with explicit safety gates |
+| `browse` | browser QA operator | Reproducible browser checks and evidence collection |
+| `qa` | QA lead | Mode-based QA execution and report artifacts |
+| `setup-browser-cookies` | session bootstrap | Reusable authenticated browser state |
+| `retro` | retrospective facilitator | Structured periodic learning with snapshot history |
 
-### Why This Package Exists
+## One feature, multiple modes (realistic flow)
 
-This repo separates cognitive modes so teams can switch intentionally:
-- strategy mode (`plan-ceo-review`)
-- engineering design mode (`plan-eng-review`)
-- paranoid code review mode (`review`)
-- release execution mode (`ship`)
-- browser validation mode (`browse`, `qa`)
-- session/auth bootstrap (`setup-browser-cookies`)
-- team learning loop (`retro`)
+```text
+You:   We want image-based listing creation.
+
+You:   /plan-ceo-review
+Agent: Challenges scope and identifies the real user job.
+
+You:   /plan-eng-review
+Agent: Produces implementation-ready architecture/test plan.
+
+You:   [implement]
+
+You:   /review
+Agent: Flags race/correctness/trust-boundary issues with file:line references.
+
+You:   /ship
+Agent: Runs pre-flight, syncs default branch, runs tests, verifies review,
+       updates version/changelog, commits, then asks confirmation for push/PR.
+
+You:   /qa https://staging.example.com --quick
+Agent: Runs fast browser QA and reports issues with explicit artifacts.
+```
+
+The value is predictable depth, not just speed.
+
+## Who should use this
+
+- Teams that already ship with Codex and want repeatable engineering quality.
+- Engineers tired of re-explaining release/review rules in every session.
+- Projects where browser-visible behavior is part of quality gates.
+- Leads who want retrospectives to produce practical follow-up actions.
+
+## Installation
 
 ## Requirements
 
 - Python `3.11+`
 - [`uv`](https://docs.astral.sh/uv/)
-- Node.js/npm (for `agent-browser` installation)
-- [`agent-browser`](https://github.com/vercel-labs/agent-browser) installed and initialized:
+- Node.js + npm
+- [`agent-browser`](https://github.com/vercel-labs/agent-browser)
+
+Install browser tooling:
 
 ```bash
 npm install -g agent-browser
 agent-browser install
 ```
 
-## Installation
-
-### Option A: Use in This Repository (recommended for development)
+## Option A: run in this repository (recommended)
 
 ```bash
 git clone <YOUR-REPO-URL> gstack-codex
@@ -71,145 +101,187 @@ uv sync --dev
 uv run gstack-codex doctor
 ```
 
-Expected doctor output:
+Expected:
 
 ```text
 OK: agent-browser is available
 ```
 
-### Option B: Install Skills Globally for Codex Sessions
+## Option B: register skills globally for Codex
 
-Use this when you want the skills available across projects.
+Use this when you want the same skill set across projects.
 
 ```bash
-# 1) Clone this repo somewhere stable
 mkdir -p "$HOME/.codex/skills-src"
 git clone <YOUR-REPO-URL> "$HOME/.codex/skills-src/gstack-codex"
 cd "$HOME/.codex/skills-src/gstack-codex"
 
-# 2) Link each skill into CODEX_HOME/skills (default: ~/.codex/skills)
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 mkdir -p "$CODEX_HOME/skills"
 for skill_dir in .agents/skills/*; do
   ln -sfn "$(pwd)/$skill_dir" "$CODEX_HOME/skills/$(basename "$skill_dir")"
 done
 
-# 3) Validate tooling in this clone
 uv sync --dev
 uv run gstack-codex doctor
 ```
 
-Notes:
-- This repo keeps skills under `.agents/skills/*/SKILL.md`; global registration links each skill directory directly.
-- If your Codex setup requires project instructions, add a short section in project `AGENTS.md` naming the skill set you expect to use.
-
-### Option C: Add to a Team Repository (project-local)
-
-If you want teammates to get the same skill definitions by cloning the repo:
+## Option C: copy into a team repository
 
 ```bash
-mkdir -p /path/to/your-project/.agents/skills
-cp -R /path/to/gstack-codex/.agents/skills/* /path/to/your-project/.agents/skills/
+mkdir -p /path/to/project/.agents/skills
+cp -R /path/to/gstack-codex/.agents/skills/* /path/to/project/.agents/skills/
 ```
 
-Then in your project `AGENTS.md`, list the imported skills so sessions reliably trigger them.
+Then add these skills to your project `AGENTS.md` to make trigger expectations explicit.
 
-If you also want CLI helpers, keep a local clone of this repo and run `uv run gstack-codex ...` from it.
+## 15-minute first run
 
-## Quick Start
-
-Run this sequence end-to-end once:
+Run this once to validate installation and basic workflow coverage:
 
 ```bash
 uv sync --dev
 uv run gstack-codex doctor
 uv run pytest
-uv run gstack-codex qa-report --url http://localhost:3000 --mode full --out .gstack/qa-reports
+
 uv run gstack-codex ship-steps
-uv run gstack-codex retro-window "compare 14d"
+uv run gstack-codex ship-steps --no-pr
+
+uv run gstack-codex qa-report --url http://localhost:3000 --mode full --out .gstack/qa-reports
 uv run gstack-codex save-state ./states/dev.json
 uv run gstack-codex load-state ./states/dev.json
+uv run gstack-codex retro-window "compare 14d"
 ```
 
-After running the sequence, verify:
-- tests pass and coverage remains `>=90%`
-- `.gstack/qa-reports/` contains report artifacts
-- `states/dev.json` is created and loadable
+Verify:
+- tests pass
+- coverage remains `>= 90%`
+- report file exists in `.gstack/qa-reports/`
+- `states/dev.json` can be saved and loaded
 
-## Skill Reference (8 Skills)
+## Skill reference (deep version)
 
-Invocation note:
-- trigger by skill name (for example: `plan-ceo-review`, `qa`, `ship`)
-- some clients also support slash aliases like `/qa`; semantics are the same
+Each skill section below covers: when to use, what to ask for, expected output, and common failure patterns.
 
-### `plan-ceo-review`
+## `plan-ceo-review`
 
-Use before implementation to pressure-test whether you are solving the right problem.
+### Use this when
 
-Focus areas:
-- premise challenge
-- scope decision (`scope_expansion` / `hold_scope` / `scope_reduction`)
-- failure mode registry
-- architecture/security/data-flow/test/deploy risk framing
+- the ticket sounds correct but you suspect the real opportunity is larger
+- user value is unclear or success criteria are vague
+- scope must be challenged before implementation cost locks in
 
-Expected output:
-- `NOT in scope`
-- `What already exists`
-- failure modes + recommendations
-- open decisions and completion summary
+### Ask for
 
-### `plan-eng-review`
+- explicit problem reframing
+- scope options (`expand`, `hold`, `reduce`) with tradeoffs
+- failure modes tied to business/user impact
+- a decision-complete recommendation
 
-Use after scope is fixed to produce an implementation-safe technical plan.
+### Good output characteristics
 
-Focus areas:
-- minimal safe change set
-- architecture boundaries and failure scenarios
-- test matrix (unit/integration/e2e)
-- performance and operational risks
+- clear “not in scope” boundary
+- concrete assumptions and risks
+- recommendations you can act on immediately
 
-Expected output:
-- concrete recommendations by criticality
-- explicit TODO updates
-- completion summary ready for implementation handoff
+### Common anti-patterns
 
-### `review`
+- brainstorming without decisions
+- generic product advice with no implementation implications
+- skipping hard tradeoffs
 
-Use for pre-landing review on feature branches.
+## `plan-eng-review`
 
-Execution shape:
-1. Check branch + diff against `origin/main`
-2. Load `.agents/skills/review/checklist.md`
-3. Optional Greptile triage from `.agents/skills/review/greptile-triage.md`
-4. Two-pass review: critical then informational
+### Use this when
 
-Output contract:
-- findings first, severity ordered
-- file/line references
-- suggested fix per finding
-- residual risk + testing gaps when no findings
+- product direction is stable
+- implementation details are still ambiguous
+- you want an engineer-ready plan, not additional ideation
 
-### `ship`
+### Ask for
 
-Use for structured release execution when branch content is already ready.
+- architecture boundaries
+- data and control flow
+- edge cases/failure modes
+- test matrix and acceptance criteria
+- rollout/rollback risks
 
-Pipeline:
-1. pre-flight checks
-2. merge latest `origin/main`
+### Good output characteristics
+
+- implementation can start without major missing decisions
+- explicit interface and validation expectations
+- operational risks are surfaced before coding
+
+### Common anti-patterns
+
+- over-indexing on diagrams without testability details
+- no failure-path handling
+- plan still requires many new decisions during implementation
+
+## `review`
+
+### Use this when
+
+- branch implementation is functionally complete
+- you need merge-risk detection, not stylistic commentary
+
+### Core execution shape
+
+1. inspect branch + diff
+2. load checklist from `.agents/skills/review/checklist.md`
+3. optional Greptile triage (`.agents/skills/review/greptile-triage.md`)
+4. two-pass review: critical first, informational second
+
+### Expected output contract
+
+- findings first
+- ordered by severity
+- each finding includes file/line and suggested fix
+- if no findings, output residual risk/testing gaps explicitly
+
+### Common anti-patterns
+
+- summary-first output with hidden findings
+- no file/line references
+- “looks good overall” with zero actionable signal
+
+## `ship`
+
+### Use this when
+
+- branch is already reviewed and ready to release
+- you want a deterministic release flow with safety gates
+
+### Canonical sequence
+
+1. pre-flight (`git branch`, `git status`, diff/log vs default branch)
+2. sync latest default branch
 3. run `uv run pytest`
-4. run review workflow
+4. run pre-landing review
 5. update `VERSION` and `CHANGELOG.md`
-6. commit
-7. push + PR creation (confirmation required)
+6. commit (`git add -A && git commit -m "chore: ship release"`)
+7. run `git push` and `gh pr create --fill` only after explicit confirmation
 
-Safety behavior:
-- `git push` and `gh pr create --fill` require explicit confirmation.
+### Safety behavior
 
-### `browse`
+- `push` and `create-pr` require user confirmation by policy
+- if PR already exists, `gh pr create --fill` may return existing-PR message (expected)
 
-Use for browser-visible verification and evidence collection via direct `agent-browser` commands.
+### Common anti-patterns
 
-Canonical command patterns:
+- skipping changelog/version updates
+- running push/PR without explicit confirmation
+- assuming `main` branch name when repo default branch differs
+
+## `browse`
+
+### Use this when
+
+- behavior is browser-visible
+- screenshots/console/network evidence are required
+- you need reproducible steps, not “manual click memory”
+
+### Canonical command style
 
 ```bash
 agent-browser open <url>
@@ -219,230 +291,116 @@ agent-browser errors
 agent-browser network requests
 ```
 
-```bash
-agent-browser screenshot --annotate
-agent-browser screenshot --full
-```
+### Good practice
 
-```bash
-agent-browser set viewport 375 812
-agent-browser screenshot mobile.png
-agent-browser set viewport 768 1024
-agent-browser screenshot tablet.png
-agent-browser set viewport 1280 720
-agent-browser screenshot desktop.png
-```
+- define expected outcomes before interacting
+- capture evidence immediately after each critical step
+- separate functional and layout checks
 
-### `qa`
+## `qa`
 
-Use for systematic QA with four modes:
-- `diff-aware`: route-scoped checks based on changed files
-- `full`: broad app traversal with issue reporting
-- `quick`: smoke validation
-- `regression`: compare against baseline health
+### Use this when
 
-Required artifacts:
-- `.gstack/qa-reports/report.md`
-- `.gstack/qa-reports/baseline.json`
-- `.gstack/qa-reports/screenshots/*`
+- you need systematic verification instead of ad-hoc browsing
 
-Canonical template:
-- `.agents/skills/qa/templates/qa-report-template.md`
+### Modes
 
-### `setup-browser-cookies`
+- `diff-aware`: verify branch-affected areas
+- `quick`: smoke coverage for fast signal
+- `full`: broader exploratory pass
+- `regression`: compare against known baseline
 
-Use when tests require authenticated pages without redoing login every run.
+### Typical output
 
-Command flow:
+- Markdown report summary
+- issue list and severity
+- baseline/reference artifacts
 
-```bash
-agent-browser --auto-connect state save ./states/<name>.json
-agent-browser --state ./states/<name>.json open <target-url>
-agent-browser state load ./states/<name>.json
-agent-browser cookies
-```
+## `setup-browser-cookies`
 
-Rules:
-- treat state files as secrets
-- keep `states/` out of git
-- fall back to manual browser debug setup if `--auto-connect` is unavailable
+### Use this when
 
-### `retro`
+- authenticated routes must be tested repeatedly
+- logging in manually is noisy or brittle
 
-Use for weekly/team engineering retrospectives.
+### Typical pattern
 
-Supported inputs:
-- `retro` (defaults to `7d`)
-- `retro 24h`, `retro 14d`, `retro 30d`
-- `retro compare`
-- `retro compare 14d`
+1. bootstrap cookie/session state
+2. save state artifact
+3. load same state in later sessions
+4. run browse/qa checks against authenticated flows
 
-Output includes:
-- summary table
-- highlights and risks
-- next-iteration actions
-- snapshot JSON under `.context/retros/`
+## `retro`
 
-## CLI Reference
+### Use this when
 
-Command root:
+- weekly or milestone retros need structure
+- you want trend comparison, not one-off reflection
 
-```bash
-uv run gstack-codex <command>
-```
+### Typical outcome
 
-### `doctor`
+- metrics summary
+- contributor-level observations
+- compare-mode deltas
+- persisted snapshot for future reference
 
-Validate local `agent-browser` availability.
+## CLI reference
+
+The `gstack-codex` command includes:
+
+| Command | What it does |
+|---|---|
+| `doctor` | Validate `agent-browser` availability |
+| `browse-open <url>` | Open a URL via `agent-browser` |
+| `save-state <path>` | Save browser auth state |
+| `load-state <path>` | Load browser auth state |
+| `qa-report --url <url> [--mode] [--out] [--app]` | Generate QA report skeleton |
+| `ship-steps [--no-pr]` | Print release command sequence |
+| `retro-window [arg...]` | Parse and print retro window expression |
+
+Examples:
 
 ```bash
 uv run gstack-codex doctor
-```
-
-Returns:
-- success: `OK: agent-browser is available`
-- failure: actionable install message
-
-### `browse-open <url>`
-
-Open one URL through the configured `agent-browser` CLI wrapper.
-
-```bash
 uv run gstack-codex browse-open https://example.com
-```
-
-### `save-state <path>` / `load-state <path>`
-
-Persist and restore browser auth/session state.
-
-```bash
-uv run gstack-codex save-state ./states/dev.json
-uv run gstack-codex load-state ./states/dev.json
-```
-
-`save-state` creates parent directories automatically.
-
-### `qa-report --url ... [--app ...] [--mode ...] [--out ...]`
-
-Generate a QA report skeleton.
-
-```bash
-uv run gstack-codex qa-report \
-  --app "Demo App" \
-  --url "https://example.com" \
-  --mode full \
-  --out .gstack/qa-reports
-```
-
-Defaults:
-- `--app App`
-- `--mode full`
-- `--out .gstack/qa-reports`
-
-### `ship-steps [--no-pr]`
-
-Print the release step commands from the ship workflow.
-
-```bash
+uv run gstack-codex qa-report --url https://staging.example.com --mode quick
 uv run gstack-codex ship-steps
 uv run gstack-codex ship-steps --no-pr
+uv run gstack-codex retro-window "compare 30d"
 ```
 
-Typical `ship-steps` output:
+## Operating notes for real teams
 
-```text
-git branch --show-current
-git status
-git diff origin/main...HEAD --stat
-git fetch origin main && git merge origin/main --no-edit
-uv run pytest
-run review workflow
-update VERSION
-update CHANGELOG.md
-git add -A && git commit -m 'chore: ship release'
-git push
-gh pr create --fill
-```
+## Branch naming mismatch (`main` vs `master`)
 
-### `retro-window [args...]`
-
-Parse and validate retro window arguments.
+Some workflow docs/examples mention `origin/main`. If your repo default branch is different, detect it first:
 
 ```bash
-uv run gstack-codex retro-window
-uv run gstack-codex retro-window 14d
-uv run gstack-codex retro-window compare 14d
+git remote show origin | grep 'HEAD branch'
 ```
 
-Output format:
+Then substitute branch name in manual ship commands.
 
-```text
-raw=<window> amount=<n> unit=<h|d|w> compare=<true|false>
-```
+## Existing PR behavior
 
-## Full Multi-Mode Example
+If `gh pr create --fill` reports that a PR already exists, treat that as success for the “PR exists” condition and continue with the existing PR URL.
 
-The sequence below shows one complete feature cycle using all major modes.
+## Greptile triage behavior
 
-```text
-You: [plan mode] Add photo-first listing creation for sellers.
-
-You: plan-ceo-review
-Agent: Scope challenge complete. You are solving conversion, not upload UI only.
-       Recommended mode: hold_scope with one expansion (auto-title draft).
-
-You: plan-eng-review
-Agent: Architecture locked. Async upload->classify->draft pipeline, trust boundaries,
-       failure registry, and unit/integration/e2e matrix attached.
-
-You: [implement]
-
-You: review
-Agent: 2 critical findings, 1 medium.
-       - Race condition in cover-image selection.
-       - Missing validation around external metadata ingestion.
-       - Missing regression test for failed-upload cleanup.
-
-You: [fix findings]
-
-You: ship
-Agent: Pre-flight OK, tests green, review clean.
-       Push/PR steps are gated and need explicit confirmation.
-
-You: qa
-Agent: Diff-aware run complete. Report + baseline written to .gstack/qa-reports/.
-
-You: setup-browser-cookies
-Agent: Saved state to ./states/dev.json and verified cookies.
-
-You: retro compare 14d
-Agent: Generated compare summary and saved snapshot to .context/retros/.
-```
-
-Example operator command set around implementation/release:
-
-```bash
-uv run pytest
-uv run gstack-codex ship-steps
-uv run gstack-codex qa-report --url http://localhost:3000 --mode diff-aware --out .gstack/qa-reports
-uv run gstack-codex retro-window "compare 14d"
-```
-
-## Artifacts and Repository Layout
-
-Core paths:
-- `.agents/skills/` skill specs and templates/checklists
-- `src/gstack_codex/` Python modules (CLI, workflows, adapters)
-- `tests/` unit/integration/e2e coverage
-- `.gstack/qa-reports/` QA artifacts
-- `.context/retros/` retro snapshots
-- `states/` local browser state files (gitignored)
+Greptile triage in review/ship is additive. If PR context or credentials are unavailable, workflows should continue in degraded mode and report that status.
 
 ## Troubleshooting
 
-### `doctor` fails with binary not found
+## `Skipped loading ... invalid SKILL.md`
 
-Run:
+Cause: YAML frontmatter syntax error in a skill file.
+
+Fix checklist:
+- ensure frontmatter starts/ends with `---`
+- quote fields containing `: ` (especially `description`)
+- avoid malformed indentation
+
+## `agent-browser` unavailable in `doctor`
 
 ```bash
 npm install -g agent-browser
@@ -450,41 +408,49 @@ agent-browser install
 uv run gstack-codex doctor
 ```
 
-### Browser session/auth keeps resetting
+## `uv run pytest` fails coverage gate
 
-Use persistent state flow:
+Repository policy enforces coverage `>= 90%`. If tests pass but coverage fails, add or adjust tests before release.
+
+## `gh` operations fail
+
+Validate auth and context:
 
 ```bash
-uv run gstack-codex save-state ./states/dev.json
-uv run gstack-codex load-state ./states/dev.json
+gh auth status
+gh repo view
+gh pr status
 ```
 
-Also ensure `states/` remains gitignored.
+## Validation policy
 
-### QA reports missing expected artifacts
+Before delivery, run:
 
-Check:
-- command includes `--out` (or default `.gstack/qa-reports`)
-- write permissions for output directory
-- mode selection is valid (`full`, `quick`, `diff-aware`, `regression`)
+```bash
+uv run pytest
+```
 
-### `retro-window` rejects argument
+Policy expectations:
+- tests pass
+- core package line coverage `>= 90%`
+- unresolved risks are called out in the final delivery note
 
-Valid window examples:
-- `24h`
-- `7d`
-- `14d`
-- `2w`
-- `compare`
-- `compare 14d`
+## Repository layout
 
-## Validation Policy
+```text
+.agents/skills/         skill definitions and reference files
+src/gstack_codex/       CLI + workflow helper implementation
+tests/                  unit tests for CLI and skill modules
+.gstack/                generated QA artifacts and local run outputs
+states/                 sample state storage location
+docs/                   migration and consistency notes
+```
 
-Project policy requires:
-- run `uv run pytest` before delivery
-- keep coverage at `>=90%`
-- document unresolved risks in your final communication
+## Contribution note
 
-Current codebase is configured with:
-- pytest coverage gate in `pyproject.toml`
-- default test command: `uv run pytest`
+When updating skills or workflow behavior:
+- keep `SKILL.md` and implementation logic in sync
+- update tests for behavior changes
+- update README sections that expose command examples or workflow contracts
+
+This keeps the docs operational rather than aspirational.

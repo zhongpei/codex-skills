@@ -1,68 +1,99 @@
 # gstack-codex
 
-`gstack-codex` 是面向 Codex 的工程工作流技能包，适合希望在不同阶段切换“明确工作模式”而非单一泛化助手行为的团队。
+`gstack-codex` 的核心不是“多一组提示词”，而是把 Codex 的工作过程拆成可执行的工程流程。
 
-它包含：
-- `.agents/skills` 下的 8 个工程化技能
-- Python CLI（`gstack-codex`）用于可复现的辅助流程
-- 与 `agent-browser` 的直接命令集成（无隐藏包装）
+一句话定义：
+- 用 8 个技能把规划、评审、发布、浏览器 QA、复盘分工明确
+- 用 `gstack-codex` CLI 把关键动作做成可复现命令
+- 用 `agent-browser` 做真实页面验证，不靠“我点过了，应该没问题”
 
-本文档是“操作手册”风格：命令优先、与实现对齐、可直接落地。
+如果你们团队已经在用 AI 写代码，但质量稳定性还靠个人经验，这个仓库就是为这种阶段准备的。
 
-## 目录
+## 为什么要这样做
 
-1. [你将获得什么](#你将获得什么)
-2. [环境要求](#环境要求)
-3. [安装方式](#安装方式)
-4. [快速开始](#快速开始)
-5. [技能参考（8 Skills）](#技能参考8-skills)
-6. [CLI 参考](#cli-参考)
-7. [完整多模式示例](#完整多模式示例)
-8. [产物与仓库结构](#产物与仓库结构)
-9. [故障排查](#故障排查)
-10. [验证策略](#验证策略)
+现实里的问题通常不是“模型不会写代码”，而是流程不稳：
+- 需求还没收敛，开发就开始了
+- 同样一句“帮我 review”，有时候很深入，有时候很敷衍
+- ship 靠记忆清单，谁来执行谁的步骤都不一样
+- 浏览器回归靠手点，没证据、不可复盘
+- 周会复盘像聊天，真正可执行的改进项不多
 
-## 你将获得什么
+`gstack-codex` 想解决的是这件事：
+**把“风格”变成“流程”，把“经验”变成“可复现动作”。**
 
-### 技能清单
+## 不用这套和用这套，有什么区别
 
-| Skill | 主要用途 | 典型输出 |
+### 不用时
+
+- 计划阶段容易直接写实现细节
+- 评审结果随机，取决于当次会话状态
+- 发布动作容易漏项（尤其是版本与变更日志）
+- 浏览器问题发现得晚，证据又不完整
+- 复盘难形成持续改进闭环
+
+### 用了之后
+
+| 技能 | 角色定位 | 结果形态 |
 |---|---|---|
-| `plan-ceo-review` | 实现前挑战问题定义与范围 | 决策完整的产品/策略评审 |
-| `plan-eng-review` | 范围确定后的架构与测试方案收敛 | 可直接实现的工程计划 |
-| `review` | 合并前代码评审（清单 + 可选 Greptile 分诊） | 按严重级排序的问题清单（含文件/行号） |
-| `ship` | 结构化发版流程，含 push/PR 确认门禁 | 顺序化发布动作与安全检查 |
-| `browse` | 浏览器可见变更验证与狗粮测试 | 证据化的通过/失败结论 + 截图/日志 |
-| `qa` | `diff-aware` / `full` / `quick` / `regression` 系统化 QA | Markdown 报告 + baseline JSON |
-| `setup-browser-cookies` | 通过 `state save/load` 完成登录态复用 | 可复用的认证浏览器状态 |
-| `retro` | 周期性工程复盘，支持 compare 与快照落盘 | 指标摘要 + JSON 历史快照 |
+| `plan-ceo-review` | 产品/创始人视角压力测试 | 范围取舍、失败模式、决策结论 |
+| `plan-eng-review` | 工程负责人视角 | 可落地实现方案（架构/测试/风险） |
+| `review` | 合并前守门人 | findings 优先，带定位和修复建议 |
+| `ship` | 发布执行者 | 固定顺序发布流 + 风险动作确认门禁 |
+| `browse` | 浏览器实测执行 | 可追溯的页面验证证据 |
+| `qa` | QA 负责人 | 按模式执行的系统化 QA 结果 |
+| `setup-browser-cookies` | 会话状态管理员 | 可复用登录态 |
+| `retro` | 复盘主持 | 结构化复盘 + 快照沉淀 |
 
-### 这个仓库解决什么问题
+## 一条完整链路（真实可用，不是口号）
 
-该仓库把不同认知模式显式拆分，团队可以按阶段切换：
-- 策略模式（`plan-ceo-review`）
-- 工程设计模式（`plan-eng-review`）
-- 偏保守审查模式（`review`）
-- 发布执行模式（`ship`）
-- 浏览器验证模式（`browse`、`qa`）
-- 登录态会话模式（`setup-browser-cookies`）
-- 团队复盘模式（`retro`）
+```text
+你：   我们要做“拍照后自动生成商品信息”
 
-## 环境要求
+你：   /plan-ceo-review
+系统：先判断目标是否正确，挑战范围，识别失败模式
+
+你：   /plan-eng-review
+系统：给出工程实现边界、数据流、测试矩阵和风险点
+
+你：   [按计划实现]
+
+你：   /review
+系统：先给阻塞问题，再给非阻塞建议，附文件行号
+
+你：   /ship
+系统：预检 -> 同步主分支 -> 测试 -> 复核 -> 版本/日志 -> 提交
+       -> 询问确认后再 push/建 PR
+
+你：   /qa https://staging.example.com --quick
+系统：给出冒烟结果和可复现问题清单
+```
+
+这里最关键的是：每一步都有输入、输出和验收标准。
+
+## 适用人群
+
+- 已经把 Codex 用到日常开发里的团队
+- 需要稳定 review/ship 质量，而不是靠“这次碰巧严谨”
+- 前端/全栈项目，需要浏览器实测证据
+- 需要做工程复盘并长期跟踪改进的负责人
+
+## 安装与接入
+
+### 环境要求
 
 - Python `3.11+`
 - [`uv`](https://docs.astral.sh/uv/)
-- Node.js/npm（用于安装 `agent-browser`）
-- 已安装并初始化 [`agent-browser`](https://github.com/vercel-labs/agent-browser)：
+- Node.js / npm
+- [`agent-browser`](https://github.com/vercel-labs/agent-browser)
+
+先安装浏览器工具：
 
 ```bash
 npm install -g agent-browser
 agent-browser install
 ```
 
-## 安装方式
-
-### 方式 A：在本仓库直接使用（开发推荐）
+### 方式 A：在本仓库直接使用（推荐）
 
 ```bash
 git clone <YOUR-REPO-URL> gstack-codex
@@ -71,145 +102,167 @@ uv sync --dev
 uv run gstack-codex doctor
 ```
 
-`doctor` 期望输出：
+出现下列输出表示基础环境正确：
 
 ```text
 OK: agent-browser is available
 ```
 
-### 方式 B：全局安装 Skills（跨项目复用）
-
-用于让这些技能在多个项目的 Codex 会话中可用。
+### 方式 B：全局注册技能（跨项目共用）
 
 ```bash
-# 1) 把仓库克隆到稳定目录
 mkdir -p "$HOME/.codex/skills-src"
 git clone <YOUR-REPO-URL> "$HOME/.codex/skills-src/gstack-codex"
 cd "$HOME/.codex/skills-src/gstack-codex"
 
-# 2) 把每个 skill 目录链接到 CODEX_HOME/skills（默认 ~/.codex/skills）
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 mkdir -p "$CODEX_HOME/skills"
 for skill_dir in .agents/skills/*; do
   ln -sfn "$(pwd)/$skill_dir" "$CODEX_HOME/skills/$(basename "$skill_dir")"
 done
 
-# 3) 在该 clone 中验证工具链
 uv sync --dev
 uv run gstack-codex doctor
 ```
 
-说明：
-- 本仓库将技能放在 `.agents/skills/*/SKILL.md`，全局注册时逐个链接 skill 目录。
-- 若你的 Codex 运行环境依赖项目说明，可在项目 `AGENTS.md` 增加技能使用约定。
-
-### 方式 C：复制到团队项目（项目内分发）
-
-如果你希望团队成员只靠 `git clone` 就得到同一技能定义：
+### 方式 C：把技能复制到团队项目
 
 ```bash
-mkdir -p /path/to/your-project/.agents/skills
-cp -R /path/to/gstack-codex/.agents/skills/* /path/to/your-project/.agents/skills/
+mkdir -p /path/to/project/.agents/skills
+cp -R /path/to/gstack-codex/.agents/skills/* /path/to/project/.agents/skills/
 ```
 
-随后在项目 `AGENTS.md` 中列出这些已引入技能，确保会话可稳定触发。
+复制后建议在项目 `AGENTS.md` 明确写出可用技能列表和触发规则。
 
-如果你还需要 CLI 辅助命令，建议保留本仓库 clone，并在该仓库中执行 `uv run gstack-codex ...`。
-
-## 快速开始
-
-建议先完整跑一遍以下链路：
+## 首次跑通（建议 15 分钟）
 
 ```bash
 uv sync --dev
 uv run gstack-codex doctor
 uv run pytest
-uv run gstack-codex qa-report --url http://localhost:3000 --mode full --out .gstack/qa-reports
+
 uv run gstack-codex ship-steps
-uv run gstack-codex retro-window "compare 14d"
+uv run gstack-codex ship-steps --no-pr
+
+uv run gstack-codex qa-report --url http://localhost:3000 --mode full --out .gstack/qa-reports
 uv run gstack-codex save-state ./states/dev.json
 uv run gstack-codex load-state ./states/dev.json
+uv run gstack-codex retro-window "compare 14d"
 ```
 
-执行后检查：
-- 测试通过且覆盖率保持 `>=90%`
-- `.gstack/qa-reports/` 已生成报告产物
-- `states/dev.json` 已创建且可加载
+跑完请确认：
+- 测试通过
+- 覆盖率仍然 `>= 90%`
+- `.gstack/qa-reports/` 里有报告文件
+- `states/dev.json` 可保存、可加载
 
-## 技能参考（8 Skills）
+## 8 个技能怎么真正用起来
 
-触发说明：
-- 直接使用技能名触发（例如：`plan-ceo-review`、`qa`、`ship`）
-- 部分客户端也支持 `/qa` 这类斜杠别名，语义等价
+下面不是“功能说明书”，而是落地建议。
 
-### `plan-ceo-review`
+## `plan-ceo-review`：先确认你在做对的事
 
-用于实现前的前置挑战，验证“是不是在解正确问题”。
+### 什么时候用
 
-关注点：
-- 前提挑战
-- 范围决策（`scope_expansion` / `hold_scope` / `scope_reduction`）
-- 失败模式清单
-- 架构/安全/数据流/测试/部署风险框架
+- 需求刚提出，还没写代码
+- 你怀疑“需求描述”不等于“真正目标”
+- 需要做范围取舍（扩/稳/收）
 
-期望输出：
-- `NOT in scope`
-- `What already exists`
-- 失败模式与建议
-- 开放决策与完成摘要
+### 你应该要求它输出什么
 
-### `plan-eng-review`
+- 问题重定义
+- 范围取舍及代价
+- 明确失败模式
+- 可决策结论（而不是继续发散）
 
-在范围已经稳定后，用于产出可落地的工程方案。
+### 常见误用
 
-关注点：
-- 最小安全改动集
-- 架构边界与失败场景
-- 测试矩阵（unit/integration/e2e）
-- 性能与运维风险
+- 把它当头脑风暴工具，只收集想法不做决策
+- 输出看起来很大，但对实现没有约束力
 
-期望输出：
-- 按严重级给出明确建议
-- 显式 TODO 更新
-- 可直接交付实现的完成摘要
+## `plan-eng-review`：把方向变成能落地的方案
 
-### `review`
+### 什么时候用
 
-用于功能分支的合并前评审。
+- 产品方向已经定了
+- 还没进入大规模编码
+- 你希望“实现前把坑挖出来”
 
-执行结构：
-1. 对比 `origin/main` 检查分支和 diff
+### 核心关注点
+
+- 架构边界和依赖关系
+- 数据流和状态迁移
+- 失败路径和降级策略
+- 分层测试计划（unit/integration/e2e）
+
+### 常见误用
+
+- 图画得很多，但接口/边界没说清楚
+- 没有验收标准，导致实现时继续拍脑袋
+
+## `review`：合并前守住质量底线
+
+### 什么时候用
+
+- 功能已经实现，准备合并前
+
+### 推荐执行顺序
+
+1. 看分支 diff
 2. 读取 `.agents/skills/review/checklist.md`
-3. 可选读取 `.agents/skills/review/greptile-triage.md` 做分诊
-4. 双轮评审：先关键问题，再信息性建议
+3. 有 PR 上下文时做 Greptile 分诊
+4. 先关键问题，再信息性建议
 
-输出契约：
-- 结论先给 findings，按严重级排序
-- 包含文件/行号定位
-- 每个问题给建议修复方向
-- 若无问题，也需明确残余风险与测试缺口
+### 你应该拿到的输出
 
-### `ship`
+- findings 放在最前面
+- 按严重级排序
+- 每条有文件/行号
+- 每条有修复建议
+- 若无问题，也要写清残余风险和测试缺口
 
-用于“内容已就绪”的结构化发布执行。
+### 常见误用
 
-流程：
-1. 预检
-2. 合并最新 `origin/main`
-3. 执行 `uv run pytest`
-4. 执行 `review` 工作流
-5. 更新 `VERSION` 与 `CHANGELOG.md`
-6. 提交 commit
-7. push + 创建 PR（需确认）
+- 总结先行，问题藏在后面
+- 没有定位信息，落地成本高
+- 用“整体不错”代替具体结论
 
-安全行为：
-- `git push` 与 `gh pr create --fill` 必须显式确认后执行。
+## `ship`：把发布动作变成固定流程
 
-### `browse`
+### 什么时候用
 
-用于浏览器可见行为验证和证据采集，直接调用 `agent-browser`。
+- 分支内容已经 ready
+- 你要的是“稳定执行”，不是“边聊边想下一步”
 
-典型命令模式：
+### 标准流程
+
+1. 预检（分支、状态、和默认主分支的差异）
+2. 同步默认主分支最新代码
+3. 跑 `uv run pytest`
+4. 复跑 review 流程
+5. 更新 `VERSION` 和 `CHANGELOG.md`
+6. 提交（`git add -A && git commit -m "chore: ship release"`）
+7. 在明确确认后执行 `git push` 和 `gh pr create --fill`
+
+### 安全门禁
+
+- `push` / `create-pr` 属于风险动作，必须确认
+- 如果 PR 已存在，`gh pr create --fill` 报“already exists”是预期行为
+
+### 常见误用
+
+- 只跑测试，不更新版本和变更记录
+- 未确认直接 push
+- 把 `origin/main` 当固定事实（有些仓库默认分支是 `master`）
+
+## `browse`：让页面验证可复现
+
+### 什么时候用
+
+- 改动是浏览器可见行为
+- 你需要可回看的证据（不是“我看起来没问题”）
+
+### 常用命令
 
 ```bash
 agent-browser open <url>
@@ -219,230 +272,114 @@ agent-browser errors
 agent-browser network requests
 ```
 
-```bash
-agent-browser screenshot --annotate
-agent-browser screenshot --full
-```
+### 实操建议
 
-```bash
-agent-browser set viewport 375 812
-agent-browser screenshot mobile.png
-agent-browser set viewport 768 1024
-agent-browser screenshot tablet.png
-agent-browser set viewport 1280 720
-agent-browser screenshot desktop.png
-```
+- 先列预期，再执行操作
+- 关键路径每一步都留证据
+- 功能正确性和布局兼容性分开检查
 
-### `qa`
+## `qa`：用模式驱动测试，不靠临场发挥
 
-用于系统化 QA，支持四种模式：
-- `diff-aware`：基于改动文件推断受影响路由后做定向检查
-- `full`：核心路径全量检查并产出问题清单
-- `quick`：快速冒烟
-- `regression`：与 baseline 做健康分对比
+### 模式选择建议
 
-必需产物：
-- `.gstack/qa-reports/report.md`
-- `.gstack/qa-reports/baseline.json`
-- `.gstack/qa-reports/screenshots/*`
+- `diff-aware`：功能分支改动验证
+- `quick`：发版前冒烟
+- `full`：较大改动后的全面检查
+- `regression`：和历史基线对比
 
-规范模板：
-- `.agents/skills/qa/templates/qa-report-template.md`
+### 典型产物
 
-### `setup-browser-cookies`
+- Markdown 报告
+- 问题清单（含严重级）
+- 基线/快照类文件
 
-用于需要登录态页面的测试，避免每次重复手动登录。
+## `setup-browser-cookies`：解决登录态复用
 
-命令流：
+### 适用场景
 
-```bash
-agent-browser --auto-connect state save ./states/<name>.json
-agent-browser --state ./states/<name>.json open <target-url>
-agent-browser state load ./states/<name>.json
-agent-browser cookies
-```
+- 需要频繁验证登录后页面
+- 不希望每次手动登录
 
-规则：
-- 状态文件视为敏感信息
-- `states/` 不入库
-- 若 `--auto-connect` 不可用，退化为手动调试连接方案
+### 建议流程
 
-### `retro`
+1. 导入或建立会话状态
+2. 保存到状态文件
+3. 后续会话直接加载状态
+4. 结合 `browse/qa` 运行认证路径验证
 
-用于团队周期复盘。
+## `retro`：把复盘变成长期资产
 
-支持输入：
-- `retro`（默认 `7d`）
-- `retro 24h`、`retro 14d`、`retro 30d`
-- `retro compare`
-- `retro compare 14d`
+### 什么时候用
 
-输出包含：
-- 指标摘要表
-- 团队亮点与风险
-- 下一轮动作
-- `.context/retros/` 下的快照 JSON
+- 每周固定复盘
+- 里程碑后做阶段复盘
+
+### 目标
+
+- 沉淀指标变化
+- 形成可执行改进项
+- 保留快照，支持趋势对比
 
 ## CLI 参考
 
-命令入口：
+当前 `gstack-codex` 子命令如下：
 
-```bash
-uv run gstack-codex <command>
-```
+| 命令 | 作用 |
+|---|---|
+| `doctor` | 校验 `agent-browser` 可用性 |
+| `browse-open <url>` | 打开 URL |
+| `save-state <path>` | 保存浏览器登录态 |
+| `load-state <path>` | 加载浏览器登录态 |
+| `qa-report --url <url> [--mode] [--out] [--app]` | 生成 QA 报告骨架 |
+| `ship-steps [--no-pr]` | 输出 ship 步骤命令 |
+| `retro-window [arg...]` | 解析并打印 retro 时间窗口 |
 
-### `doctor`
-
-验证本机 `agent-browser` 可用性。
+示例：
 
 ```bash
 uv run gstack-codex doctor
-```
-
-返回：
-- 成功：`OK: agent-browser is available`
-- 失败：可执行的安装提示
-
-### `browse-open <url>`
-
-通过 CLI 包装器打开指定页面。
-
-```bash
 uv run gstack-codex browse-open https://example.com
-```
-
-### `save-state <path>` / `load-state <path>`
-
-保存并加载浏览器认证/会话状态。
-
-```bash
-uv run gstack-codex save-state ./states/dev.json
-uv run gstack-codex load-state ./states/dev.json
-```
-
-`save-state` 会自动创建父目录。
-
-### `qa-report --url ... [--app ...] [--mode ...] [--out ...]`
-
-生成 QA 报告骨架。
-
-```bash
-uv run gstack-codex qa-report \
-  --app "Demo App" \
-  --url "https://example.com" \
-  --mode full \
-  --out .gstack/qa-reports
-```
-
-默认值：
-- `--app App`
-- `--mode full`
-- `--out .gstack/qa-reports`
-
-### `ship-steps [--no-pr]`
-
-打印 ship 工作流里的发布步骤命令。
-
-```bash
+uv run gstack-codex qa-report --url https://staging.example.com --mode quick
 uv run gstack-codex ship-steps
 uv run gstack-codex ship-steps --no-pr
+uv run gstack-codex retro-window "compare 30d"
 ```
 
-典型 `ship-steps` 输出：
+## 团队落地时的几个细节
 
-```text
-git branch --show-current
-git status
-git diff origin/main...HEAD --stat
-git fetch origin main && git merge origin/main --no-edit
-uv run pytest
-run review workflow
-update VERSION
-update CHANGELOG.md
-git add -A && git commit -m 'chore: ship release'
-git push
-gh pr create --fill
-```
+### 1) 默认主分支不一致
 
-### `retro-window [args...]`
-
-解析并校验 retro 窗口参数。
+有的工作流示例写 `origin/main`，但你的仓库可能是 `master`。
+发布前先确认：
 
 ```bash
-uv run gstack-codex retro-window
-uv run gstack-codex retro-window 14d
-uv run gstack-codex retro-window compare 14d
+git remote show origin | grep 'HEAD branch'
 ```
 
-输出格式：
+### 2) Greptile 分诊是增强项，不是阻塞项
 
-```text
-raw=<window> amount=<n> unit=<h|d|w> compare=<true|false>
-```
+`review` / `ship` 在没有 PR 上下文或凭据时，应进入降级模式并继续，而不是整条流程停掉。
 
-## 完整多模式示例
+### 3) 文档与实现要一起维护
 
-下面是一个覆盖主要模式的完整功能周期示例：
+改了技能行为或 CLI 参数，就同步更新：
+- 对应 `SKILL.md`
+- 单元测试
+- README 中的命令示例
 
-```text
-你： [计划模式] 我要做“卖家拍照后自动生成商品草稿”。
+否则很快就会出现“文档能看、流程不能跑”。
 
-你： plan-ceo-review
-Agent：范围挑战完成。你的核心目标是提升转化，不是只加上传按钮。
-       建议模式：hold_scope，并附带一项扩展（自动标题草稿）。
+## 常见问题与处理
 
-你： plan-eng-review
-Agent：技术方案锁定。给出 upload->classify->draft 异步管线、信任边界、
-       失败模式清单，以及 unit/integration/e2e 测试矩阵。
+### `Skipped loading ... invalid SKILL.md`
 
-你： [编码实现]
+通常是 frontmatter YAML 写错。
+检查项：
+- `---` 起止是否完整
+- 含 `: ` 的描述字段是否加引号
+- 缩进是否破坏 YAML 结构
 
-你： review
-Agent：发现 2 个 critical、1 个 medium：
-       - 封面图选择存在竞态条件；
-       - 外部元数据注入缺少校验；
-       - 失败上传后的清理回归测试缺失。
-
-你： [修复问题]
-
-你： ship
-Agent：预检通过，测试通过，review 清零。
-       push/PR 步骤已门禁，等待显式确认。
-
-你： qa
-Agent：Diff-aware 执行完成，报告与 baseline 已写入 .gstack/qa-reports/。
-
-你： setup-browser-cookies
-Agent：状态已保存到 ./states/dev.json，cookies 已验证。
-
-你： retro compare 14d
-Agent：已生成对比摘要，并保存快照到 .context/retros/。
-```
-
-围绕实现与发布的一组操作命令示例：
-
-```bash
-uv run pytest
-uv run gstack-codex ship-steps
-uv run gstack-codex qa-report --url http://localhost:3000 --mode diff-aware --out .gstack/qa-reports
-uv run gstack-codex retro-window "compare 14d"
-```
-
-## 产物与仓库结构
-
-关键路径：
-- `.agents/skills/`：技能规范与模板/清单
-- `src/gstack_codex/`：Python 模块（CLI、工作流、适配器）
-- `tests/`：unit/integration/e2e 覆盖
-- `.gstack/qa-reports/`：QA 产物
-- `.context/retros/`：retro 快照
-- `states/`：本地浏览器状态文件（已 gitignore）
-
-## 故障排查
-
-### `doctor` 报二进制不存在
-
-执行：
+### `doctor` 提示找不到 `agent-browser`
 
 ```bash
 npm install -g agent-browser
@@ -450,41 +387,37 @@ agent-browser install
 uv run gstack-codex doctor
 ```
 
-### 浏览器会话/登录态总是丢失
+### `gh pr create --fill` 提示 PR 已存在
 
-使用持久化状态流程：
+这是正常情况，说明当前分支已有 PR。直接继续在该 PR 上推进。
+
+### 测试通过但覆盖率不达标
+
+仓库策略要求 `>=90%`。需要补测后再 ship。
+
+## 交付前质量门槛
+
+发布前至少执行：
 
 ```bash
-uv run gstack-codex save-state ./states/dev.json
-uv run gstack-codex load-state ./states/dev.json
+uv run pytest
 ```
 
-并确认 `states/` 仍被 gitignore。
+并确认：
+- 测试全通过
+- 核心包行覆盖率 `>= 90%`
+- 若有未解风险，在交付说明里显式写出
 
-### QA 报告缺少期望产物
+## 仓库结构速览
 
-检查：
-- 是否传入 `--out`（或使用默认 `.gstack/qa-reports`）
-- 输出目录是否可写
-- 模式值是否有效（`full`、`quick`、`diff-aware`、`regression`）
+```text
+.agents/skills/         技能定义与配套模板/清单
+src/gstack_codex/       CLI 与工作流实现
+tests/                  单元测试
+.gstack/                本地 QA 产物与运行输出
+states/                 浏览器状态文件示例
+docs/                   迁移说明与一致性文档
+```
 
-### `retro-window` 参数不合法
-
-合法示例：
-- `24h`
-- `7d`
-- `14d`
-- `2w`
-- `compare`
-- `compare 14d`
-
-## 验证策略
-
-项目策略要求：
-- 交付前执行 `uv run pytest`
-- 覆盖率保持 `>=90%`
-- 在最终沟通中记录未解决风险
-
-当前仓库已配置：
-- `pyproject.toml` 中 pytest 覆盖率门槛
-- 默认测试命令：`uv run pytest`
+这份文档的定位是“可执行说明”，不是“概念介绍”。
+如果你打算在团队长期使用，建议再补上你们自己的分支策略、发布节奏和环境地址，形成项目内版本。
